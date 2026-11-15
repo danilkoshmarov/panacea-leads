@@ -57,8 +57,8 @@ def fetch(channel, suffix=""):
             elif link["url"].startswith(("https://","http://")) and "t.me/" not in link["url"]:
                 application_links.append(link)
         contacts = list(dict.fromkeys("@" + h for h in handles + external if h.lower() not in BLOCKED_HANDLES and not h.lower().endswith("bot")))
-        phone_matches = re.findall(r"(?<!\\w)(?:\\+7|8|\\+\\d{1,3})[\\s(\\-]*\\d[\\d\\s()\\-]{7,}\\d", body)
-        phones = list(dict.fromkeys(re.sub(r"\\s+", " ", p).strip() for p in phone_matches))
+        phone_matches = re.findall(r"(?<!\w)(?:\+7|8|\+\d{1,3})[\s(\-]*\d[\d\s()\-]{7,}\d", body)
+        phones = list(dict.fromkeys(re.sub(r"\s+", " ", p).strip() for p in phone_matches))
         direct_contact = bool(contacts or phones)
         bm = BUDGET.search(body)
         budget = int(re.sub(r"[^0-9]", "", bm.group(1))) if bm else 0
