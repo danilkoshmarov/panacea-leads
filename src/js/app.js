@@ -4,6 +4,7 @@
     ["new","Новые"],["contacted","Связались"],["negotiation","Переговоры"],["won","Выиграно"],["lost","Проиграно"]
   ];
   let orders = load();
+  let feedLeads = [];
   const $ = (id) => document.getElementById(id);
   const money = (n) => new Intl.NumberFormat("ru-RU").format(Number(n)||0) + " ₽";
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -32,7 +33,7 @@
   function showPage(page){
     document.querySelectorAll(".page").forEach(p=>p.classList.toggle("active",p.id==="page-"+page));
     document.querySelectorAll(".nav").forEach(b=>b.classList.toggle("active",b.dataset.page===page));
-    $("crumb").textContent=({overview:"Обзор",orders:"Все заказы",crm:"CRM",favorites:"Избранное",sources:"Источники",analytics:"Аналитика",settings:"Настройки"})[page]||"Обзор";
+    $("crumb").textContent=({overview:"Обзор",orders:"Все заказы",crm:"CRM",favorites:"Избранное",sources:"Источники",analytics:"Аналитика",feed:"Найденные заказы",settings:"Настройки"})[page]||"Обзор";
     $("sidebar").classList.remove("open");
   }
   function openForm(id){
@@ -44,7 +45,40 @@
     $("f-status").value=o?.status||"new";$("f-date").value=o?.date||"";
     $("order-modal").showModal();
   }
+
+  function renderFeed(){
+    const count=$("feed-count"); if(count) count.textContent=feedLeads.length;
+    const q=($("feed-search")?.value||"").toLowerCase(), channel=$("feed-channel")?.value||"";
+    const rows=feedLeads.filter(x=>(!channel||x.channel===channel)&&[x.title,x.text,x.channel].join(" ").toLowerCase().includes(q));
+    $("feed-list").innerHTML=rows.length?rows.map(x=>{
+      const already=orders.some(o=>o.originLink===x.url);
+      const contacts=(x.contacts||[]).map(c=>'<a class="contact-link" href="https://t.me/'+esc(c.replace("@",""))+'" target="_blank" rel="noopener">'+esc(c)+' ↗</a>').join(" ");
+      const questions=(x.questions||[]).map(q=>'<li>'+esc(q)+'</li>').join("");
+      return '<article class="panel lead-card"><div class="lead-top"><div><span class="tag">'+esc(x.channel)+'</span> <span class="lead-date">'+esc((x.date||"").replace("T"," ").replace("+00:00",""))+'</span><h2>'+esc(x.title)+'</h2></div><b class="lead-budget">'+(x.budget?money(x.budget):"Бюджет не указан")+'</b></div><div class="lead-text">'+esc(x.text)+'</div><div class="lead-info"><div><b>Контакт</b><p>'+(contacts||"В публикации не найден username. Открой оригинальный пост и проверь контакт.")+'</p></div><div><b>Совет</b><p>'+esc(x.advice||"Уточни объём, сроки и порядок оплаты до начала работы.")+'</p></div></div><div class="lead-questions"><b>Что спросить у заказчика</b><ol>'+questions+'</ol></div><div class="lead-actions"><a class="secondary" href="'+esc(x.url)+'" target="_blank" rel="noopener">Оригинальный пост ↗</a><button class="primary" data-feed-add="'+esc(x.id)+'" '+(already?"disabled":"")+'>'+(already?"Уже в CRM":"Добавить в CRM")+'</button></div></article>';
+    }).join(""):'<div class="panel empty">Пока нет подходящих публикаций. Нажми «Обновить» или дождись следующего цикла сбора.</div>';
+  }
+  async function loadFeed(){
+    const label=$("feed-updated");
+    try{
+      const res=await fetch("data/leads.json?ts="+Date.now(),{cache:"no-store"});
+      if(!res.ok) throw new Error("feed not ready");
+      const data=await res.json(); feedLeads=Array.isArray(data.leads)?data.leads:[];
+      if(label) label.textContent="Обновлено: "+(data.updatedAt?new Date(data.updatedAt).toLocaleString("ru-RU"):"время неизвестно")+" · найдено "+feedLeads.length;
+      renderFeed();
+    }catch(e){if(label) label.textContent="Лента ещё не создана — запусти сбор в GitHub Actions.";renderFeed()}
+  }
+  $("feed-search")?.addEventListener("input",renderFeed);
+  $("feed-channel")?.addEventListener("change",renderFeed);
+  $("feed-refresh")?.addEventListener("click",loadFeed);
+
   document.addEventListener("click",e=>{
+    const feedAdd=e.target.closest("[data-feed-add]");
+    if(feedAdd){
+      const lead=feedLeads.find(x=>x.id===feedAdd.dataset.feedAdd); if(!lead)return;
+      if(orders.some(o=>o.originLink===lead.url)){toast("Этот заказ уже в CRM");renderFeed();return}
+      orders.push({id:crypto.randomUUID(),title:lead.title,budget:lead.budget||0,source:lead.channel,contact:(lead.contacts||[])[0]||lead.url,description:lead.text,status:"new",date:(lead.date||"").slice(0,10),created:Date.now(),favorite:false,originLink:lead.url,needsReview:true,advice:lead.advice,questions:lead.questions});
+      save();renderFeed();toast("Заказ добавлен в CRM");return;
+    }
     const page=e.target.closest("[data-page]")?.dataset.page||e.target.closest("[data-go]")?.dataset.go;
     if(page){showPage(page);return}
     if(e.target.closest("[data-add]")){openForm();return}
@@ -79,4 +113,5 @@
   });
   $("menu-btn").onclick=()=>$("sidebar").classList.toggle("open");
   render();
+  loadFeed();
 })();
