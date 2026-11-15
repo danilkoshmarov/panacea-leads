@@ -53,12 +53,33 @@ def fetch(channel):
         if len(body)<35 or not KEYWORDS.search(body) or NEGATIVE.search(body) or NOISE.search(body) or VACANCY.search(body): continue
         date_m=re.search(r'<time[^>]*datetime="([^"]+)"',block)
         date=date_m.group(1) if date_m else ""
-        links=re.findall(r'<a[^>]+href="([^"]+)"',block)
-        handles=list(dict.fromkeys(re.findall(r'(?<![\w])@[A-Za-z0-9_]{5,}',body)))
+        anchor_rows=re.findall(r'<a\\b([^>]*)>(.*?)</a>',block,re.S)
+        link_items=[]
+        for attrs,label_html in anchor_rows:
+            hm=re.search(r'href="([^"]+)"',attrs)
+            if not hm: continue
+            href=unescape(hm.group(1))
+            label=strip_tags(label_html)
+            if href.startswith(("https://","http://","tg://")):
+                link_items.append({"text":label[:120],"url":href})
+        handles=list(dict.fromkeys(re.findall(r'(?<![\\w])@[A-Za-z0-9_]{5,}',body)))
         external=[]
-        for link in links:
-            mt=re.search(r'https?://t\.me/([A-Za-z0-9_]{5,})(?:[/?#]|$)',link)
+        for item in link_items:
+            mt=re.search(r'https?://t\\.me/([A-Za-z0-9_]{5,})(?:[/?#]|$)',item["url"])
             if mt and mt.group(1).lower()!=channel.lower(): external.append("@"+mt.group(1))
+        contacts=list(dict.fromkeys([h for h in handles+external if h.lstrip("@").lower() not in {"setjobs_bot",channel.lower(),"job_webdev","web_fl","webfrl","job_developer"}]))
+        application_links=[x for x in link_items if x["url"].startswith(("https://","http://")) and "t.me/"+channel not in x["url"]]
+        bm=BUDGET.search(body)
+        budget=int(re.sub(r"[^0-9]","",bm.group(1))) if bm and not NOISE.search(body) else 0
+        post_url="https://t.me/"+post if post else url
+        fingerprint=hashlib.sha256((post_url+"|"+body[:250]).encode()).hexdigest()
+        title=next((x.strip(" -*•—") for x in body.splitlines() if len(x.strip())>8), "Заказ на разработку")[:120]
+        questions=["Какой результат нужен и какие страницы/функции входят в объём?","Есть ли примеры или референсы желаемого результата?","Какой срок сдачи и есть ли промежуточные этапы?","Кто предоставляет тексты, изображения и доступы?"]
+        if not budget: questions.insert(0,"Какой бюджет предусмотрен на задачу?")
+        advice="Проверь объём, сроки и оплату до согласования. Не начинай работу без зафиксированного ТЗ и понятного порядка оплаты."
+        if contacts: advice+=" Контакт найден в публикации — сначала уточни детали в личных сообщениях."
+        else: advice+=" Прямой личный контакт в посте не обнаружен: проверь ссылку на заявку или оригинальную публикацию."
+        items.append({"id":fingerprint,"title":title,"text":body[:5000],"channel":"@"+channel,"date":date,"url":post_url,"contacts":contacts,"applicationLinks":application_links,"budget":budget,"questions":questions,"advice":advice,"fetchedAt":datetime.now(timezone.utc).isoformat()})
         blocked={"setjobs_bot", channel.lstrip("@").lower(), "job_webdev", "web_fl", "webfrl", "job_developer"}
         contacts=list(dict.fromkeys([h for h in handles+external if h.lstrip("@").lower() not in blocked]))
         bm=BUDGET.search(body)
