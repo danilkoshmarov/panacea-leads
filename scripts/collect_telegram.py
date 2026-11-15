@@ -7,11 +7,11 @@ CHANNELS = ["web_fl", "job_webdev", "webfrl", "job_developer", "digitaltender"]
 OUT = "data/leads.json"
 KEYWORDS = re.compile(r"(сайт|лендинг|верстк|разработ|фронтенд|frontend|html|css|javascript|\bjs\b|wordpress|доработ|веб-прилож|web\s?site|landing|figma)", re.I)
 NEGATIVE = re.compile(r"(ищу работу|ищу заказ|предлагаю услуги|моё портфолио|мое портфолио|резюме|ищем сотрудника|вакансия для разработчика)", re.I)
-NOISE = re.compile(r"(подборка лучших постов|лучшие статьи|больше проектов в нашем боте|узнать больше|#реклама)", re.I)
-VACANCY = re.compile(r"(компания\s*:|опыт работы\s*:|зарплата\s*:|требования\s*:|полная занятость|график работы)", re.I)
+NOISE = re.compile(r"(подборка лучших постов|лучшие статьи|больше проектов в нашем боте|узнать больше|за последние сутки наш фриланс-бот наш[её]л|#реклама)", re.I)
+VACANCY = re.compile(r"(компания\s*:|опыт работы\s*:|зарплата\s*:|требования\s*:|полная занятость|график работы|тип работы\s*:\s*постоянная)", re.I)
 BUDGET = re.compile(r"(?:бюджет|оплата|стоимость|цена|до|от)?\s*([0-9][0-9\s.,]{2,})\s*(₽|руб(?:лей|ля)?|р\.?|usd|\$)", re.I)
 BLOCKED_APPLY = ("kwork.ru",)
-BLOCKED_HANDLES = set(CHANNELS + ["setjobs_bot", "job_webdev", "web_fl", "webfrl", "job_developer", "digitaltender"])
+BLOCKED_HANDLES = set(CHANNELS + ["setjobs_bot", "job_webdev", "web_fl", "webfrl", "job_developer", "digitaltender", "digitaltenderbot"])
 
 def clean(s):
     s = re.sub(r"<br\s*/?>", "\n", s, flags=re.I)
