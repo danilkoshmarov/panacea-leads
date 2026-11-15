@@ -47,7 +47,7 @@
   }
 
   function renderFeed(){
-    const count=$("feed-count"); if(count) count.textContent=feedLeads.length;
+    const count=$("feed-count"); if(count) count.textContent=feedLeads.length; const bestStatus=$("best-status"); const bestLead=feedLeads.find(x=>x.best); if(bestStatus){bestStatus.innerHTML=bestLead?'<b>★</b><div><strong>Лучший доступный заказ найден</strong><p>Он отмечен первым в ленте. Прямой Telegram-контакт проверяется по самой публикации.</p></div>':'<b>!</b><div><strong>Пока нет подтверждённого лучшего заказа</strong><p>Не найдено объявления, которое одновременно подходит по навыкам, достаточно свежее и содержит личный контакт заказчика. Контакт канального бота или ссылка на биржу не считаются личным сообщением.</p></div>';}
     const q=($("feed-search")?.value||"").toLowerCase(), channel=$("feed-channel")?.value||"";
     const rows=feedLeads.filter(x=>(!channel||x.channel===channel)&&[x.title,x.text,x.channel].join(" ").toLowerCase().includes(q)).sort((a,b)=>(Number(b.best)-Number(a.best))||(Number(b.score)||0)-(Number(a.score)||0)||String(b.date).localeCompare(String(a.date)));
     $("feed-list").innerHTML=rows.length?rows.map(x=>{
