@@ -114,4 +114,6 @@
   $("menu-btn").onclick=()=>$("sidebar").classList.toggle("open");
   render();
   loadFeed();
+  // Keep the public feed fresh while the page stays open.
+  setInterval(loadFeed, 60 * 1000);
 })();
