@@ -63,6 +63,20 @@
   $("export").onclick=()=>{const blob=new Blob([JSON.stringify({version:"0.2.1",exportedAt:new Date().toISOString(),orders},null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="panacea-leads-backup.json";a.click();URL.revokeObjectURL(a.href);toast("Резервная копия скачана")};
   $("import").onchange=async e=>{const file=e.target.files[0];if(!file)return;try{const data=JSON.parse(await file.text());const incoming=Array.isArray(data)?data:data.orders;if(!Array.isArray(incoming))throw Error("bad format");if(confirm("Импорт заменит текущую базу. Продолжить?")){orders=incoming.map(o=>({...o,id:o.id||crypto.randomUUID(),created:o.created||Date.now(),favorite:!!o.favorite}));save();toast("Данные импортированы")}}catch{alert("Не удалось прочитать файл. Выбери резервную копию Panacea Leads JSON.")}e.target.value=""};
   $("clear").onclick=()=>{if(confirm("Точно удалить все заказы? Это действие нельзя отменить.")){orders=[];save();toast("База очищена")}};
+  $("tg-import").addEventListener("click",()=>{
+    const raw=$("tg-text").value.trim(), link=$("tg-link").value.trim(), source=$("tg-source").value;
+    if(raw.length<25){$("tg-result").textContent="Вставь полный текст объявления (минимум 25 символов).";return;}
+    if(link&&!/^https?:\/\//i.test(link)){$("tg-result").textContent="Ссылка должна начинаться с http:// или https://.";return;}
+    const lines=raw.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+    const title=(lines.find(x=>x.length>8&&!/^https?:\/\//i.test(x)&&!/^@[\w]+$/.test(x))||lines[0]||"Заказ из Telegram").slice(0,120);
+    const budgetMatch=raw.match(/(?:бюджет|оплата|стоимость|цена|до|от)?\s*(\d[\d\s.,]{2,})\s*(₽|руб(?:лей|ля)?|р\.?|\$|usd)/i);
+    const budget=budgetMatch?Number(budgetMatch[1].replace(/[\s.,]/g,"")):0;
+    const handles=[...raw.matchAll(/@[a-zA-Z0-9_]{5,}/g)].map(x=>x[0]);
+    const contact=link||handles.find(x=>x!==source)||"Контакт не найден в тексте";
+    const id=crypto.randomUUID();
+    orders.push({id,title,budget,source,contact,description:raw.slice(0,2000),status:"new",date:new Date().toISOString().slice(0,10),created:Date.now(),favorite:false,originLink:link,importMethod:"user_paste",needsReview:true});
+    save();$("tg-result").textContent="Добавлено. Проверь название, бюджет и контакт перед откликом.";$("tg-text").value="";$("tg-link").value="";toast("Публикация добавлена в CRM");
+  });
   $("menu-btn").onclick=()=>$("sidebar").classList.toggle("open");
   render();
 })();
