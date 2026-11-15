@@ -15,6 +15,7 @@
     <nav>
       <button class="nav active" data-page="overview">◫　Обзор</button>
       <button class="nav" data-page="orders">⌕　Все заказы <span id="nav-count">0</span></button>
+      <button class="nav" data-page="feed">⚡　Автопоиск <span id="feed-count">0</span></button>
       <button class="nav" data-page="crm">▤　CRM</button>
       <button class="nav" data-page="favorites">☆　Избранное</button>
       <button class="nav" data-page="sources">◎　Источники</button>
@@ -40,6 +41,12 @@
       <div class="heading"><div><small>LEAD DATABASE</small><h1>Все заказы</h1><p>Единая база проектов, заявок и потенциальных клиентов.</p></div><button class="primary" data-add>＋ Добавить заказ</button></div>
       <div class="toolbar"><input id="search" placeholder="Поиск по названию, описанию, контакту…"><select id="filter-status"><option value="">Все статусы</option><option value="new">Новый</option><option value="contacted">Связались</option><option value="negotiation">Переговоры</option><option value="won">Выигран</option><option value="lost">Проигран</option></select><select id="sort"><option value="newest">Сначала новые</option><option value="oldest">Сначала старые</option><option value="budget">По бюджету ↓</option></select></div>
       <div class="panel" id="orders-list"></div>
+    </section>
+    <section class="page" id="page-feed">
+      <div class="heading"><div><small>LIVE LEAD COLLECTION</small><h1>Найденные заказы</h1><p>Новые публичные объявления из Telegram. Проверяй детали перед откликом.</p></div><button class="secondary" id="feed-refresh">↻ Обновить</button></div>
+      <div class="notice"><b>⚡</b><div><strong id="feed-updated">Автоматический сбор</strong><p>Источники проверяются примерно каждые 15 минут. Время обновления и ошибки отображаются здесь.</p></div></div>
+      <div class="toolbar"><input id="feed-search" placeholder="Поиск по заказам, технологиям и тексту…"><select id="feed-channel"><option value="">Все каналы</option><option>@web_fl</option><option>@job_webdev</option><option>@webfrl</option><option>@job_developer</option></select></div>
+      <div id="feed-list"></div>
     </section>
     <section class="page" id="page-crm"><div class="heading"><div><small>CLIENT RELATIONSHIP</small><h1>CRM</h1><p>Следи за каждым контактом от первого касания до результата.</p></div><button class="primary" data-add>＋ Добавить заказ</button></div><div class="crm" id="crm-board"></div></section>
     <section class="page" id="page-favorites"><div class="heading"><div><small>SAVED OPPORTUNITIES</small><h1>Избранное</h1><p>Самые интересные заказы, к которым нужно вернуться.</p></div></div><div class="panel" id="favorites-list"></div></section>
