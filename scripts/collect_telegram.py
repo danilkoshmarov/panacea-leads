@@ -56,7 +56,10 @@ def fetch(channel, suffix=""):
                 external.append(mt.group(1))
             elif link["url"].startswith(("https://","http://")) and "t.me/" not in link["url"]:
                 application_links.append(link)
-        contacts = list(dict.fromkeys("@" + h for h in handles + external if h.lower() not in BLOCKED_HANDLES))
+        contacts = list(dict.fromkeys("@" + h for h in handles + external if h.lower() not in BLOCKED_HANDLES and not h.lower().endswith("bot")))
+        phone_matches = re.findall(r"(?<!\\w)(?:\\+7|8|\\+\\d{1,3})[\\s(\\-]*\\d[\\d\\s()\\-]{7,}\\d", body)
+        phones = list(dict.fromkeys(re.sub(r"\\s+", " ", p).strip() for p in phone_matches))
+        direct_contact = bool(contacts or phones)
         bm = BUDGET.search(body)
         budget = int(re.sub(r"[^0-9]", "", bm.group(1))) if bm else 0
         post_url = "https://t.me/" + post
@@ -71,22 +74,23 @@ def fetch(channel, suffix=""):
         hard_stack = re.search(r"(react|next\.?js|vue|angular|php|python|fastapi|node\.?js|postgres|api|битрикс|opencart|woocommerce|asp\.net|knockout)", body, re.I) is not None
         blocked_application = any(any(host in x["url"].lower() for host in BLOCKED_APPLY) for x in application_links)
         score = 0
-        score += 25 if contacts else 0
+        score += 25 if direct_contact else 0
         score += 20 if age_days <= 2 else 14 if age_days <= 7 else 6 if age_days <= 14 else 0
         score += 20 if low_scope else 5
         score += 10 if budget else 0
         score -= 25 if hard_stack else 0
         score -= 35 if blocked_application else 0
         score -= 30 if age_days > 14 else 0
-        eligible = bool(contacts) and not blocked_application and age_days <= 14 and score >= 35
+        eligible = direct_contact and not blocked_application and age_days <= 14 and score >= 35
         best_reason = []
-        if contacts: best_reason.append("есть прямой Telegram-контакт")
+        if contacts: best_reason.append("есть личный Telegram-контакт")
+        if phones: best_reason.append("есть номер телефона заказчика")
         if age_days <= 7: best_reason.append("публикация не старше 7 дней")
         if low_scope: best_reason.append("объём похож на доступную HTML/CSS/JS-задачу")
-        if blocked_application: best_reason.append("отклик ведёт на ограниченную биржу")
+        if blocked_application: best_reason.append("есть только ссылка на биржу, а не прямой контакт")
         items.append({
             "id":fingerprint,"title":title,"text":body[:5000],"channel":"@"+channel,
-            "date":date,"url":post_url,"contacts":contacts,"applicationLinks":application_links,
+            "date":date,"url":post_url,"contacts":contacts,"phones":phones,"hasDirectContact":direct_contact,"applicationLinks":application_links,
             "budget":budget,"score":score,"eligible":eligible,"best":False,
             "bestReason":best_reason,
             "questions":["Какой точный объём и какие страницы/функции входят в задачу?","Есть ли макет Figma/PSD и готовые материалы?","Какой срок и порядок оплаты?"],
