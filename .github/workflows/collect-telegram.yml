@@ -2,6 +2,8 @@ name: Collect public Telegram leads
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "data/leads.json"
   schedule:
     - cron: "*/15 * * * *"
   workflow_dispatch:
