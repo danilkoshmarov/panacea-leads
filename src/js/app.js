@@ -12,7 +12,7 @@
   function save(){localStorage.setItem(KEY,JSON.stringify(orders));render()}
   function toast(msg){const t=$("toast");t.textContent=msg;t.classList.add("show");clearTimeout(toast.timer);toast.timer=setTimeout(()=>t.classList.remove("show"),2200)}
   function statusName(s){return statuses.find(x=>x[0]===s)?.[1]||"Новый"}
-  function card(o){return `<div class="order"><div class="order-main"><strong>${esc(o.title)}</strong><p>${esc(o.description||o.contact||"Описание не добавлено")}</p></div><span class="badge ${o.status}">${statusName(o.status)}</span><div class="order-meta"><b>${money(o.budget)}</b><small>${esc(o.source||"Источник не указан")}</small></div><div class="row-actions"><button class="small" data-fav="${o.id}" title="Избранное">${o.favorite?"★":"☆"}</button><button class="small" data-edit="${o.id}">Изменить</button><button class="small" data-delete="${o.id}">✕</button></div></div>`}
+  function card(o){const id=esc(o.id);const safeStatus=statuses.some(x=>x[0]===o.status)?o.status:"new";return `<div class="order"><div class="order-main"><strong>${esc(o.title)}</strong><p>${esc(o.description||o.contact||"Описание не добавлено")}</p></div><span class="badge ${safeStatus}">${statusName(safeStatus)}</span><div class="order-meta"><b>${money(o.budget)}</b><small>${esc(o.source||"Источник не указан")}</small></div><div class="row-actions"><button class="small" data-fav="${id}" title="Избранное">${o.favorite?"★":"☆"}</button><button class="small" data-edit="${id}">Изменить</button><button class="small" data-delete="${id}">✕</button></div></div>`}
   function empty(msg="Пока здесь пусто."){return `<div class="empty">${msg}</div>`}
   function render(){
     $("nav-count").textContent=orders.length;
@@ -25,7 +25,7 @@
     list.sort(sort==="budget"?(a,b)=>(b.budget||0)-(a.budget||0):sort==="oldest"?(a,b)=>a.created-b.created:(a,b)=>b.created-a.created);
     $("orders-list").innerHTML=list.length?list.map(card).join(""):empty("Ничего не найдено. Измени фильтр или добавь заказ.");
     const fav=orders.filter(o=>o.favorite);$("favorites-list").innerHTML=fav.length?fav.map(card).join(""):empty("В избранном пока нет заказов.");
-    $("crm-board").innerHTML=statuses.map(([key,label])=>{const rows=orders.filter(o=>o.status===key);return `<div class="crm-col"><h3>${label}<span>${rows.length}</span></h3>${rows.map(o=>`<div class="crm-card" data-edit="${o.id}"><b>${esc(o.title)}</b><small>${money(o.budget)}</small></div>`).join("")||'<div class="empty">Пусто</div>'}</div>`}).join("");
+    $("crm-board").innerHTML=statuses.map(([key,label])=>{const rows=orders.filter(o=>o.status===key);return `<div class="crm-col"><h3>${label}<span>${rows.length}</span></h3>${rows.map(o=>`<div class="crm-card" data-edit="${esc(o.id)}"><b>${esc(o.title)}</b><small>${money(o.budget)}</small></div>`).join("")||'<div class="empty">Пусто</div>'}</div>`}).join("");
     const won=orders.filter(o=>o.status==="won").length, avg=total?Math.round(budget/total):0, closed=orders.filter(o=>["won","lost"].includes(o.status)).length;
     $("a-total").textContent=total;$("a-average").textContent=money(avg);$("a-won").textContent=won;$("a-rate").textContent=(closed?Math.round(won/closed*100):0)+"%";
     $("bars").innerHTML=statuses.map(([key,label])=>{const n=orders.filter(o=>o.status===key).length;return `<div class="bar-row"><span>${label}</span><div class="bar-track"><div class="bar-fill" style="width:${total?n/total*100:0}%"></div></div><b>${n}</b></div>`}).join("");
@@ -47,27 +47,43 @@
   }
 
   function renderFeed(){
-    const count=$("feed-count"); if(count) count.textContent=feedLeads.length; const bestStatus=$("best-status"); const bestLead=feedLeads.find(x=>x.best); if(bestStatus){bestStatus.innerHTML=bestLead?'<b>★</b><div><strong>Лучший доступный заказ найден</strong><p>Он отмечен первым в ленте. Здесь есть прямой Telegram-контакт или номер телефона.</p></div>':'<b>!</b><div><strong>Пока нет подтверждённого лучшего заказа</strong><p>Не найдено объявления, которое одновременно подходит по навыкам, достаточно свежее и содержит личный контакт заказчика. Контакт канального бота или ссылка на биржу не считаются личным сообщением.</p></div>';}
+    const count=$("feed-count"); if(count) count.textContent=feedLeads.length; const bestStatus=$("best-status"); const bestLead=feedLeads.find(x=>x.best&&x.eligible&&x.hasDirectContact); if(bestStatus){bestStatus.innerHTML=bestLead?'<b>★</b><div><strong>Лучший доступный заказ найден</strong><p>Он отмечен первым в ленте. Здесь есть прямой Telegram-контакт или номер телефона.</p></div>':'<b>!</b><div><strong>Пока нет подтверждённого лучшего заказа</strong><p>Не найдено объявления, которое одновременно подходит по навыкам, достаточно свежее и содержит личный контакт заказчика. Контакт канального бота или ссылка на биржу не считаются личным сообщением.</p></div>';}
     const q=($("feed-search")?.value||"").toLowerCase(), channel=$("feed-channel")?.value||"";
-    const rows=feedLeads.filter(x=>(!channel||x.channel===channel)&&[x.title,x.text,x.channel].join(" ").toLowerCase().includes(q)).sort((a,b)=>(Number(b.best)-Number(a.best))||(Number(b.score)||0)-(Number(a.score)||0)||String(b.date).localeCompare(String(a.date)));
+    const rows=feedLeads.filter(x=>(!channel||x.channel===channel)&&[x.title,x.text,x.channel].join(" ").toLowerCase().includes(q)).sort((a,b)=>(Number(Boolean(b.best&&b.eligible&&b.hasDirectContact))-Number(Boolean(a.best&&a.eligible&&a.hasDirectContact)))||(Number(b.score)||0)-(Number(a.score)||0)||String(b.date).localeCompare(String(a.date)));
     $("feed-list").innerHTML=rows.length?rows.map(x=>{
       const already=orders.some(o=>o.originLink===x.url);
-      const contacts=(x.contacts||[]).map(c=>'<a class="contact-link" href="https://t.me/'+esc(c.replace("@",""))+'" target="_blank" rel="noopener">Написать '+esc(c)+' в Telegram ↗</a>').join(" ");
-      const phones=(x.phones||[]).map(p=>'<a class="contact-link" href="tel:'+esc(p.replace(/[^\+\d]/g,""))+'">Позвонить: '+esc(p)+'</a>').join(" ");
+      const contacts=(x.hasDirectContact?(x.contacts||[]):[]).map(c=>'<a class="contact-link" href="https://t.me/'+esc(c.replace("@",""))+'" target="_blank" rel="noopener">Написать '+esc(c)+' в Telegram ↗</a>').join(" ");
+      const phones=(x.hasDirectContact?(x.phones||[]):[]).map(p=>'<a class="contact-link" href="tel:'+esc(p.replace(/[^\+\d]/g,""))+'">Позвонить: '+esc(p)+'</a>').join(" ");
       const directContact=contacts||phones||'<span class="no-contact">Прямого контакта нет — только исходная публикация. Ссылки на биржи и боты не выдаём за личный контакт.</span>';
       const questions=(x.questions||[]).map(q=>'<li>'+esc(q)+'</li>').join("");
       return '<article class="panel lead-card '+(x.best?"best-card":"")+'">'+(x.best?'<div class="best-ribbon">★ ЛУЧШИЙ ЗАКАЗ · ЕСТЬ ЛИЧНЫЙ КОНТАКТ</div>':'')+'<div class="lead-top"><div><span class="tag">'+esc(x.channel)+'</span> <span class="lead-date">'+esc((x.date||"").replace("T"," ").replace("+00:00",""))+'</span><h2>'+esc(x.title)+'</h2></div><b class="lead-budget">'+(x.budget?money(x.budget):"Бюджет не указан")+'</b></div><div class="lead-text">'+esc(x.text)+'</div><div class="lead-info"><div><b>Личный контакт заказчика</b><p>'+directContact+'</p></div><div><b>Почему выбран</b><p>'+esc((x.bestReason||[]).join(" · ")||x.advice||"Оцени детали перед откликом.")+'</p></div></div><div class="lead-questions"><b>Что спросить у заказчика</b><ol>'+questions+'</ol></div><div class="lead-actions"><a class="secondary" href="'+esc(x.url)+'" target="_blank" rel="noopener">Оригинальный пост ↗</a><button class="primary" data-feed-add="'+esc(x.id)+'" '+(already?"disabled":"")+'>'+(already?"Уже в CRM":"Добавить в CRM")+'</button></div></article>';
     }).join(""):'<div class="panel empty">Пока нет подходящих публикаций. Нажми «Обновить» или дождись следующего цикла сбора.</div>';
   }
+  let feedLoading=false;
   async function loadFeed(){
+    if(feedLoading)return false;
+    feedLoading=true;
     const label=$("feed-updated");
     try{
       const res=await fetch("data/leads.json?ts="+Date.now(),{cache:"no-store"});
-      if(!res.ok) throw new Error("feed not ready");
-      const data=await res.json(); feedLeads=Array.isArray(data.leads)?data.leads:[];
-      if(label) label.textContent="Обновлено: "+(data.updatedAt?new Date(data.updatedAt).toLocaleString("ru-RU"):"время неизвестно")+" · найдено "+feedLeads.length;
+      if(!res.ok) throw new Error("HTTP "+res.status);
+      const data=await res.json();
+      if(!data||!Array.isArray(data.leads)) throw new Error("Некорректный формат ленты");
+      feedLeads=data.leads;
+      const updated=data.updatedAt?new Date(data.updatedAt):null;
+      const validDate=updated&&!Number.isNaN(updated.getTime());
+      const ageMinutes=validDate?(Date.now()-updated.getTime())/60000:Infinity;
+      const stamp=validDate?updated.toLocaleString("ru-RU"):"время неизвестно";
+      const warning=ageMinutes>35?" · данные могут быть устаревшими":"";
+      const errors=Array.isArray(data.errors)?data.errors.length:0;
+      if(label) label.textContent="Обновлено: "+stamp+" · найдено "+feedLeads.length+(errors?" · ошибок источников: "+errors:"")+warning;
       renderFeed();
-    }catch(e){if(label) label.textContent="Лента ещё не создана — запусти сбор в GitHub Actions.";renderFeed()}
+      return true;
+    }catch(e){
+      if(label) label.textContent="Не удалось загрузить ленту: "+(e.message||"ошибка сети")+". Попробуй позже или открой GitHub Actions.";
+      renderFeed();
+      return false;
+    }finally{feedLoading=false}
   }
   $("feed-search")?.addEventListener("input",renderFeed);
   $("feed-channel")?.addEventListener("change",renderFeed);
@@ -77,10 +93,8 @@
     btn.disabled=true; btn.textContent="↻ Проверяю…";
     if(label) label.textContent="Проверяем последнюю опубликованную ленту…";
     try{
-      await loadFeed();
-      if(label && feedLeads.length>=0) label.textContent=label.textContent+" · лента перечитана";
-    }catch(e){
-      if(label) label.textContent="Не удалось загрузить ленту. Проверь интернет или открой GitHub Actions.";
+      const ok=await loadFeed();
+      if(ok&&label) label.textContent=label.textContent+" · проверено сейчас";
     }finally{
       btn.disabled=false; btn.textContent="↻ Проверить обновления";
     }
@@ -130,5 +144,5 @@
   render();
   loadFeed();
   // Keep the public feed fresh while the page stays open.
-  setInterval(loadFeed, 60 * 1000);
+  setInterval(()=>{if(!document.hidden)loadFeed()}, 60 * 1000);
 })();
