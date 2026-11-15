@@ -1,127 +1,128 @@
 import json, os, re, hashlib
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from urllib.request import Request, urlopen
 from html import unescape
-from html.parser import HTMLParser
 
-CHANNELS = ["web_fl", "job_webdev", "webfrl", "job_developer"]
+CHANNELS = ["web_fl", "job_webdev", "webfrl", "job_developer", "digitaltender"]
 OUT = "data/leads.json"
-KEYWORDS = re.compile(r"\b(сайт|лендинг|верстк|разработ|фронтенд|frontend|html|css|javascript|\bjs\b|wordpress|бот|интернет-магазин|доработ|веб-прилож|web\s?site|landing|figma)\b", re.I)
-NEGATIVE = re.compile(r"(ищу работу|ищу заказ|предлагаю услуги|моё портфолио|мое портфолио|резюме|вакансия для разработчика)", re.I)
-NOISE = re.compile(r"(за последние сутки наш фриланс-бот|подборка лучших постов|лучшие статьи|больше проектов в нашем боте|узнать больше)", re.I)
+KEYWORDS = re.compile(r"(сайт|лендинг|верстк|разработ|фронтенд|frontend|html|css|javascript|\bjs\b|wordpress|доработ|веб-прилож|web\s?site|landing|figma)", re.I)
+NEGATIVE = re.compile(r"(ищу работу|ищу заказ|предлагаю услуги|моё портфолио|мое портфолио|резюме|ищем сотрудника|вакансия для разработчика)", re.I)
+NOISE = re.compile(r"(подборка лучших постов|лучшие статьи|больше проектов в нашем боте|узнать больше|#реклама)", re.I)
 VACANCY = re.compile(r"(компания\s*:|опыт работы\s*:|зарплата\s*:|требования\s*:|полная занятость|график работы)", re.I)
 BUDGET = re.compile(r"(?:бюджет|оплата|стоимость|цена|до|от)?\s*([0-9][0-9\s.,]{2,})\s*(₽|руб(?:лей|ля)?|р\.?|usd|\$)", re.I)
+BLOCKED_APPLY = ("kwork.ru",)
+BLOCKED_HANDLES = set(CHANNELS + ["setjobs_bot", "job_webdev", "web_fl", "webfrl", "job_developer", "digitaltender"])
 
-class MessageParser(HTMLParser):
-    def __init__(self):
-        super().__init__(); self.messages=[]; self.current=None; self.capture=0; self.capture_link=False
-    def handle_starttag(self, tag, attrs):
-        a=dict(attrs); cls=a.get("class","")
-        if tag=="div" and "tgme_widget_message_wrap" in cls:
-            self.current={"post":a.get("data-post",""),"text":"","date":"","links":[]}
-        elif self.current is not None:
-            if tag=="div" and "tgme_widget_message_text" in cls: self.capture+=1
-            if tag=="time" and a.get("datetime"): self.current["date"]=a["datetime"]
-            if tag=="a" and a.get("href"): self.current["links"].append(a["href"])
-    def handle_endtag(self, tag):
-        if self.current is not None and tag=="div" and self.capture: self.capture-=1
-    def handle_data(self, data):
-        if self.current is not None and self.capture: self.current["text"] += data
-    def close(self):
-        super().close()
-        # Message boundaries are parsed by a second, robust block parser below.
-
-def strip_tags(s):
-    s=re.sub(r"<br\s*/?>","\n",s,flags=re.I)
-    s=re.sub(r"</div>|</p>","\n",s,flags=re.I)
-    s=re.sub(r"<[^>]+>"," ",s)
-    return re.sub(r"[ \t]+"," ",unescape(s)).strip()
+def clean(s):
+    s = re.sub(r"<br\s*/?>", "\n", s, flags=re.I)
+    s = re.sub(r"</div>|</p>", "\n", s, flags=re.I)
+    s = re.sub(r"<[^>]+>", " ", s)
+    return re.sub(r"[ \t]+", " ", unescape(s)).strip()
 
 def fetch(channel):
-    url=f"https://t.me/s/{channel}"
-    req=Request(url,headers={"User-Agent":"Mozilla/5.0 (compatible; PanaceaLeads/1.0)"})
-    with urlopen(req,timeout=25) as r: html=r.read().decode("utf-8","replace")
-    blocks=re.findall(r'<div class="tgme_widget_message_wrap[^"]*"[^>]*data-post="([^"]+)"[^>]*>(.*?)(?=<div class="tgme_widget_message_wrap|<div class="tgme_channel_bottom|$)',html,re.S)
+    url = f"https://t.me/s/{channel}"
+    req = Request(url, headers={"User-Agent":"Mozilla/5.0 (compatible; PanaceaLeads/1.0)"})
+    with urlopen(req, timeout=25) as r:
+        html = r.read().decode("utf-8", "replace")
+    blocks = re.findall(r'<div class="tgme_widget_message_wrap[^"]*"[^>]*data-post="([^"]+)"[^>]*>(.*?)(?=<div class="tgme_widget_message_wrap|<div class="tgme_channel_bottom|$)', html, re.S)
     if not blocks:
-        blocks=re.findall(r'<div class="tgme_widget_message_wrap[^>]*>(.*?)(?=<div class="tgme_widget_message_wrap|<div class="tgme_channel_bottom|$)',html,re.S)
-        blocks=[(re.search(r'data-post="([^"]+)"',b).group(1) if re.search(r'data-post="([^"]+)"',b) else "",b) for b in blocks]
-    items=[]
+        return []
+    items = []
     for post, block in blocks:
-        m=re.search(r'<div class="tgme_widget_message_text[^"]*"[^>]*>(.*?)</div>',block,re.S)
-        if not m: continue
-        body=strip_tags(m.group(1))
-        if len(body)<35 or not KEYWORDS.search(body) or NEGATIVE.search(body) or NOISE.search(body) or VACANCY.search(body): continue
-        date_m=re.search(r'<time[^>]*datetime="([^"]+)"',block)
-        date=date_m.group(1) if date_m else ""
-        anchor_rows=re.findall(r'<a\\b([^>]*)>(.*?)</a>',block,re.S)
-        link_items=[]
-        for attrs,label_html in anchor_rows:
-            hm=re.search(r'href="([^"]+)"',attrs)
-            if not hm: continue
-            href=unescape(hm.group(1))
-            label=strip_tags(label_html)
-            if href.startswith(("https://","http://","tg://")):
-                link_items.append({"text":label[:120],"url":href})
-        handles=list(dict.fromkeys(re.findall(r'(?<![\\w])@[A-Za-z0-9_]{5,}',body)))
-        external=[]
-        for item in link_items:
-            mt=re.search(r'https?://t\\.me/([A-Za-z0-9_]{5,})(?:[/?#]|$)',item["url"])
-            if mt and mt.group(1).lower()!=channel.lower(): external.append("@"+mt.group(1))
-        contacts=list(dict.fromkeys([h for h in handles+external if h.lstrip("@").lower() not in {"setjobs_bot",channel.lower(),"job_webdev","web_fl","webfrl","job_developer"}]))
-        application_links=[x for x in link_items if x["url"].startswith(("https://","http://")) and "t.me/"+channel not in x["url"]]
-        bm=BUDGET.search(body)
-        budget=int(re.sub(r"[^0-9]","",bm.group(1))) if bm and not NOISE.search(body) else 0
-        post_url="https://t.me/"+post if post else url
-        fingerprint=hashlib.sha256((post_url+"|"+body[:250]).encode()).hexdigest()
-        title=next((x.strip(" -*•—") for x in body.splitlines() if len(x.strip())>8), "Заказ на разработку")[:120]
-        questions=["Какой результат нужен и какие страницы/функции входят в объём?","Есть ли примеры или референсы желаемого результата?","Какой срок сдачи и есть ли промежуточные этапы?","Кто предоставляет тексты, изображения и доступы?"]
-        if not budget: questions.insert(0,"Какой бюджет предусмотрен на задачу?")
-        advice="Проверь объём, сроки и оплату до согласования. Не начинай работу без зафиксированного ТЗ и понятного порядка оплаты."
-        if contacts: advice+=" Контакт найден в публикации — сначала уточни детали в личных сообщениях."
-        else: advice+=" Прямой личный контакт в посте не обнаружен: проверь ссылку на заявку или оригинальную публикацию."
-        items.append({"id":fingerprint,"title":title,"text":body[:5000],"channel":"@"+channel,"date":date,"url":post_url,"contacts":contacts,"applicationLinks":application_links,"budget":budget,"questions":questions,"advice":advice,"fetchedAt":datetime.now(timezone.utc).isoformat()})
-        blocked={"setjobs_bot", channel.lstrip("@").lower(), "job_webdev", "web_fl", "webfrl", "job_developer"}
-        contacts=list(dict.fromkeys([h for h in handles+external if h.lstrip("@").lower() not in blocked]))
-        bm=BUDGET.search(body)
-        budget=int(re.sub(r"[^0-9]","",bm.group(1))) if bm and not NOISE.search(body) else 0
-        post_url="https://t.me/"+post if post else url
-        fingerprint=hashlib.sha256((post_url+"|"+body[:250]).encode()).hexdigest()
-        title=next((x.strip(" -*•—") for x in body.splitlines() if len(x.strip())>8), "Заказ на разработку")[:120]
-        questions=["Какой результат нужен и какие страницы/функции входят в объём?","Есть ли примеры или референсы желаемого результата?","Какой срок сдачи и есть ли промежуточные этапы?","Кто предоставляет тексты, изображения и доступы?"]
-        if not budget: questions.insert(0,"Какой бюджет предусмотрен на задачу?")
-        advice="Проверь объём, сроки и оплату до согласования. Не начинай работу без зафиксированного ТЗ и понятного порядка оплаты."
-        if contacts: advice+=" Контакт найден в публикации — сначала уточни детали в личных сообщениях."
-        else: advice+=" Прямой личный контакт в посте не обнаружен: открой оригинальную публикацию и проверь способ связи."
-        items.append({"id":fingerprint,"title":title,"text":body[:5000],"channel":"@"+channel,"date":date,"url":post_url,"contacts":contacts,"budget":budget,"questions":questions,"advice":advice,"fetchedAt":datetime.now(timezone.utc).isoformat()})
+        m = re.search(r'<div class="tgme_widget_message_text[^"]*"[^>]*>(.*?)</div>', block, re.S)
+        if not m:
+            continue
+        body = clean(m.group(1))
+        if len(body) < 35 or not KEYWORDS.search(body) or NEGATIVE.search(body) or NOISE.search(body) or VACANCY.search(body):
+            continue
+        dm = re.search(r'<time[^>]*datetime="([^"]+)"', block)
+        date = dm.group(1) if dm else ""
+        links = []
+        for attrs, label_html in re.findall(r'<a\b([^>]*)>(.*?)</a>', block, re.S):
+            hm = re.search(r'href="([^"]+)"', attrs)
+            if hm:
+                href = unescape(hm.group(1)).replace("&amp;", "&")
+                if href.startswith(("https://", "http://", "tg://")):
+                    links.append({"text":clean(label_html)[:100], "url":href})
+        handles = re.findall(r'(?<![\w])@([A-Za-z0-9_]{5,})', body)
+        external = []
+        application_links = []
+        for link in links:
+            mt = re.search(r'https?://t\.me/([A-Za-z0-9_]{5,})(?:[/?#]|$)', link["url"])
+            if mt and mt.group(1).lower() != channel.lower():
+                external.append(mt.group(1))
+            elif link["url"].startswith(("https://","http://")) and "t.me/" not in link["url"]:
+                application_links.append(link)
+        contacts = list(dict.fromkeys("@" + h for h in handles + external if h.lower() not in BLOCKED_HANDLES))
+        bm = BUDGET.search(body)
+        budget = int(re.sub(r"[^0-9]", "", bm.group(1))) if bm else 0
+        post_url = "https://t.me/" + post
+        fingerprint = hashlib.sha256((post_url + "|" + body[:250]).encode()).hexdigest()
+        title = next((x.strip(" -*•—") for x in body.splitlines() if len(x.strip()) > 8), "Заказ на разработку")[:120]
+        try:
+            posted = datetime.fromisoformat(date.replace("Z","+00:00"))
+            age_days = max(0, (datetime.now(timezone.utc)-posted).total_seconds()/86400)
+        except Exception:
+            age_days = 999
+        low_scope = re.search(r"(две страницы|2 страницы|одностранич|лендинг|верстк|исправить|доработать|правк)", body, re.I) is not None
+        hard_stack = re.search(r"(react|next\.?js|vue|angular|php|python|fastapi|node\.?js|postgres|api|битрикс|opencart|woocommerce|asp\.net|knockout)", body, re.I) is not None
+        blocked_application = any(any(host in x["url"].lower() for host in BLOCKED_APPLY) for x in application_links)
+        score = 0
+        score += 25 if contacts else 0
+        score += 20 if age_days <= 2 else 14 if age_days <= 7 else 6 if age_days <= 14 else 0
+        score += 20 if low_scope else 5
+        score += 10 if budget else 0
+        score -= 25 if hard_stack else 0
+        score -= 35 if blocked_application else 0
+        score -= 30 if age_days > 14 else 0
+        eligible = bool(contacts) and not blocked_application and age_days <= 14 and score >= 35
+        best_reason = []
+        if contacts: best_reason.append("есть прямой Telegram-контакт")
+        if age_days <= 7: best_reason.append("публикация не старше 7 дней")
+        if low_scope: best_reason.append("объём похож на доступную HTML/CSS/JS-задачу")
+        if blocked_application: best_reason.append("отклик ведёт на ограниченную биржу")
+        items.append({
+            "id":fingerprint,"title":title,"text":body[:5000],"channel":"@"+channel,
+            "date":date,"url":post_url,"contacts":contacts,"applicationLinks":application_links,
+            "budget":budget,"score":score,"eligible":eligible,"best":False,
+            "bestReason":best_reason,
+            "questions":["Какой точный объём и какие страницы/функции входят в задачу?","Есть ли макет Figma/PSD и готовые материалы?","Какой срок и порядок оплаты?"],
+            "advice":"До согласования попроси макет/ТЗ, зафиксируй объём, срок и этапы оплаты. Не начинай без согласованных условий.",
+            "fetchedAt":datetime.now(timezone.utc).isoformat()
+        })
     return items
 
-all_items=[]
-errors=[]
+all_items, errors = [], []
 for channel in CHANNELS:
-    try: all_items.extend(fetch(channel))
-    except Exception as e: errors.append({"channel":channel,"error":str(e)[:240]})
+    try:
+        all_items.extend(fetch(channel))
+    except Exception as e:
+        errors.append({"channel":channel,"error":str(e)[:240]})
 
-old={}
-if os.path.exists(OUT):
+# Deduplicate by source post and keep only dated, recent, actionable client requests.
+cutoff = datetime.now(timezone.utc) - timedelta(days=14)
+unique = {}
+for item in all_items:
     try:
-        for x in json.load(open(OUT,encoding="utf-8")).get("leads",[]): old[x["id"]]=x
-    except Exception: pass
-for item in all_items: old[item["id"]]=item
-# Keep only actionable, recent project posts; discard digests, bot teasers and hiring ads.
-from datetime import timedelta
-cutoff=datetime.now(timezone.utc)-timedelta(days=30)
-def keep_lead(x):
-    body=x.get("text","")
-    if NOISE.search(body) or NEGATIVE.search(body) or VACANCY.search(body): return False
-    if not KEYWORDS.search(body): return False
-    try:
-        posted=datetime.fromisoformat(x.get("date","").replace("Z","+00:00"))
-        if posted < cutoff: return False
+        posted = datetime.fromisoformat(item["date"].replace("Z","+00:00"))
     except Exception:
-        return False
-    return True
-leads=sorted((x for x in old.values() if keep_lead(x)),key=lambda x:x.get("date",""),reverse=True)[:300]
-os.makedirs("data",exist_ok=True)
+        continue
+    if posted < cutoff:
+        continue
+    if NOISE.search(item["text"]) or NEGATIVE.search(item["text"]) or VACANCY.search(item["text"]):
+        continue
+    unique[item["id"]] = item
+
+leads = sorted(unique.values(), key=lambda x:(x["score"], x["date"]), reverse=True)[:300]
+best = next((x for x in leads if x["eligible"]), None)
+if best:
+    best["best"] = True
+for x in leads:
+    x["isBestAvailable"] = bool(best and x["id"] == best["id"])
+
+os.makedirs("data", exist_ok=True)
 with open(OUT,"w",encoding="utf-8") as f:
-    json.dump({"updatedAt":datetime.now(timezone.utc).isoformat(),"count":len(leads),"channels":CHANNELS,"errors":errors,"leads":leads},f,ensure_ascii=False,indent=2)
-print(f"Fetched {len(all_items)} matching posts; stored {len(leads)} leads; errors={len(errors)}")
+    json.dump({"updatedAt":datetime.now(timezone.utc).isoformat(),"count":len(leads),
+               "bestLeadId":best["id"] if best else None,"channels":CHANNELS,
+               "errors":errors,"leads":leads},f,ensure_ascii=False,indent=2)
+print(f"Fetched {len(all_items)} matching posts; stored {len(leads)} recent leads; best={'yes' if best else 'no'}; errors={len(errors)}")
