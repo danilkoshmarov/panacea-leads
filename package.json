@@ -1,0 +1,9 @@
+{
+  "name": "panacea-leads",
+  "version": "0.2.1",
+  "private": true,
+  "description": "Local lead management workspace",
+  "scripts": {
+    "start": "npx serve ."
+  }
+}
