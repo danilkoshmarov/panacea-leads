@@ -10,8 +10,13 @@ NEGATIVE = re.compile(r"(ищу работу|ищу заказ|предлага�
 NOISE = re.compile(r"(подборка лучших постов|лучшие статьи|больше проектов в нашем боте|узнать больше|за последние сутки наш фриланс-бот наш[её]л|#реклама)", re.I)
 VACANCY = re.compile(r"(компания\s*:|опыт работы\s*:|зарплата\s*:|требования\s*:|полная занятость|график работы|тип работы\s*:\s*постоянная)", re.I)
 BUDGET = re.compile(r"(?:бюджет|оплата|стоимость|цена|до|от)?\s*([0-9][0-9\s.,]{2,})\s*(₽|руб(?:лей|ля)?|р\.?|usd|\$)", re.I)
-BLOCKED_APPLY = ("kwork.ru",)
+BLOCKED_APPLY = ("kwork.ru", "weblancer.net", "fl.ru", "freelance.ru", "freelancehunt.com", "work-zilla.com", "youdo.com")
 BLOCKED_HANDLES = set(CHANNELS + ["setjobs_bot", "job_webdev", "web_fl", "webfrl", "job_developer", "digitaltender", "digitaltenderbot"])
+NON_WEB = re.compile(r"(графическ\\w* дизайнер|печатн\\w* продукц|фирменн\\w* стил|логотип|полиграф|баннер\\w*|smm[- ]?дизайн)", re.I)
+PROVIDER_TITLE = re.compile(r"^\\s*[👔💼]?\\s*(?:программист|графический дизайнер|веб[- ]?дизайнер|разработчик)\\s*$", re.I)
+CONTACT_CONTEXT = re.compile(r"(?:контакт(?:ы)?|писать|напишите|связаться|связь|telegram|телеграм|tg|заказчик|отклик)\\s*[:：\\-–—]?\\s*@([A-Za-z0-9_]{5,})", re.I)
+CONTACT_AFTER = re.compile(r"@([A-Za-z0-9_]{5,})\\s*[,—–\\-:]?\\s*(?:контакт|заказчик|телеграм|telegram)", re.I)
+CONTACT_LINK_LABEL = re.compile(r"(контакт|написать|связаться|заказчик|telegram|телеграм|отклик)", re.I)
 
 def clean(s):
     s = re.sub(r"<br\s*/?>", "\n", s, flags=re.I)
@@ -36,7 +41,7 @@ def fetch(channel, suffix=""):
         if not m:
             continue
         body = clean(m.group(1))
-        if len(body) < 35 or not KEYWORDS.search(body) or NEGATIVE.search(body) or NOISE.search(body) or VACANCY.search(body):
+        if len(body) < 35 or not KEYWORDS.search(body) or NEGATIVE.search(body) or NOISE.search(body) or VACANCY.search(body) or NON_WEB.search(body):
             continue
         dm = re.search(r'<time[^>]*datetime="([^"]+)"', block)
         date = dm.group(1) if dm else ""
@@ -47,12 +52,13 @@ def fetch(channel, suffix=""):
                 href = unescape(hm.group(1)).replace("&amp;", "&")
                 if href.startswith(("https://", "http://", "tg://")):
                     links.append({"text":clean(label_html)[:100], "url":href})
-        handles = re.findall(r'(?<![\w])@([A-Za-z0-9_]{5,})', body)
+        # Require an explicit contact cue; random mentions are not treated as client contacts.
+        handles = CONTACT_CONTEXT.findall(body) + CONTACT_AFTER.findall(body)
         external = []
         application_links = []
         for link in links:
-            mt = re.fullmatch(r'https?://t\.me/([A-Za-z0-9_]{5,})/?(?:\?[^#]*)?(?:#.*)?', link["url"])
-            if mt and mt.group(1).lower() != channel.lower():
+            mt = re.fullmatch(r'https?://t\\.me/([A-Za-z0-9_]{5,})/?(?:\\?[^#]*)?(?:#.*)?', link["url"])
+            if mt and mt.group(1).lower() != channel.lower() and CONTACT_LINK_LABEL.search(link["text"]):
                 external.append(mt.group(1))
             elif link["url"].startswith(("https://","http://")) and "t.me/" not in link["url"]:
                 application_links.append(link)
@@ -83,7 +89,7 @@ def fetch(channel, suffix=""):
         score -= 30 if age_days > 14 else 0
         eligible = direct_contact and not blocked_application and age_days <= 14 and score >= 35
         best_reason = []
-        if contacts: best_reason.append("есть личный Telegram-контакт")
+        if contacts: best_reason.append("в объявлении явно указан Telegram для связи")
         if phones: best_reason.append("есть номер телефона заказчика")
         if age_days <= 7: best_reason.append("публикация не старше 7 дней")
         if low_scope: best_reason.append("объём похож на доступную HTML/CSS/JS-задачу")
@@ -91,7 +97,7 @@ def fetch(channel, suffix=""):
         items.append({
             "id":fingerprint,"title":title,"text":body[:5000],"channel":"@"+channel,
             "date":date,"url":post_url,"contacts":contacts,"phones":phones,"hasDirectContact":direct_contact,"applicationLinks":application_links,
-            "budget":budget,"score":score,"eligible":eligible,"best":False,
+            "budget":budget,"score":score,"eligible":eligible,"best":False,"contactEvidence":"explicit_context_or_labeled_profile_link" if contacts else ("phone_in_post" if phones else None),
             "bestReason":best_reason,
             "questions":["Какой точный объём и какие страницы/функции входят в задачу?","Есть ли макет Figma/PSD и готовые материалы?","Какой срок и порядок оплаты?"],
             "advice":"До согласования попроси макет/ТЗ, зафиксируй объём, срок и этапы оплаты. Не начинай без согласованных условий.",
@@ -118,7 +124,7 @@ for item in all_items:
         continue
     if posted < cutoff:
         continue
-    if NOISE.search(item["text"]) or NEGATIVE.search(item["text"]) or VACANCY.search(item["text"]):
+    if NOISE.search(item["text"]) or NEGATIVE.search(item["text"]) or VACANCY.search(item["text"]) or NON_WEB.search(item["text"]) or PROVIDER_TITLE.match(item["title"]):
         continue
     unique[item["id"]] = item
 
