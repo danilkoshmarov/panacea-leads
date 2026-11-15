@@ -8,6 +8,8 @@ CHANNELS = ["web_fl", "job_webdev", "webfrl", "job_developer"]
 OUT = "data/leads.json"
 KEYWORDS = re.compile(r"\b(сайт|лендинг|верстк|разработ|фронтенд|frontend|html|css|javascript|\bjs\b|wordpress|бот|интернет-магазин|доработ|веб-прилож|web\s?site|landing|figma)\b", re.I)
 NEGATIVE = re.compile(r"(ищу работу|ищу заказ|предлагаю услуги|моё портфолио|мое портфолио|резюме|вакансия для разработчика)", re.I)
+NOISE = re.compile(r"(за последние сутки наш фриланс-бот|подборка лучших постов|лучшие статьи|больше проектов в нашем боте|узнать больше)", re.I)
+VACANCY = re.compile(r"(компания\\s*:|опыт работы\\s*:|зарплата\\s*:|требования\\s*:|полная занятость|график работы)", re.I)
 BUDGET = re.compile(r"(?:бюджет|оплата|стоимость|цена|до|от)?\s*([0-9][0-9\s.,]{2,})\s*(₽|руб(?:лей|ля)?|р\.?|usd|\$)", re.I)
 
 class MessageParser(HTMLParser):
@@ -48,7 +50,7 @@ def fetch(channel):
         m=re.search(r'<div class="tgme_widget_message_text[^"]*"[^>]*>(.*?)</div>',block,re.S)
         if not m: continue
         body=strip_tags(m.group(1))
-        if len(body)<35 or not KEYWORDS.search(body) or NEGATIVE.search(body): continue
+        if len(body)<35 or not KEYWORDS.search(body) or NEGATIVE.search(body) or NOISE.search(body) or VACANCY.search(body): continue
         date_m=re.search(r'<time[^>]*datetime="([^"]+)"',block)
         date=date_m.group(1) if date_m else ""
         links=re.findall(r'<a[^>]+href="([^"]+)"',block)
@@ -57,9 +59,10 @@ def fetch(channel):
         for link in links:
             mt=re.search(r'https?://t\.me/([A-Za-z0-9_]{5,})(?:[/?#]|$)',link)
             if mt and mt.group(1).lower()!=channel.lower(): external.append("@"+mt.group(1))
-        contacts=list(dict.fromkeys(handles+external))
+        blocked={"setjobs_bot", channel.lower(), "job_webdev", "web_fl", "webfrl", "job_developer"}
+        contacts=list(dict.fromkeys([h for h in handles+external if h.lstrip("@").lower() not in blocked]))
         bm=BUDGET.search(body)
-        budget=int(re.sub(r"[^0-9]","",bm.group(1))) if bm else 0
+        budget=int(re.sub(r"[^0-9]","",bm.group(1))) if bm and not NOISE.search(body) else 0
         post_url="https://t.me/"+post if post else url
         fingerprint=hashlib.sha256((post_url+"|"+body[:250]).encode()).hexdigest()
         title=next((x.strip(" -*•—") for x in body.splitlines() if len(x.strip())>8), "Заказ на разработку")[:120]
@@ -83,7 +86,20 @@ if os.path.exists(OUT):
         for x in json.load(open(OUT,encoding="utf-8")).get("leads",[]): old[x["id"]]=x
     except Exception: pass
 for item in all_items: old[item["id"]]=item
-leads=sorted(old.values(),key=lambda x:x.get("date",""),reverse=True)[:500]
+# Keep only actionable, recent project posts; discard digests, bot teasers and hiring ads.
+from datetime import timedelta
+cutoff=datetime.now(timezone.utc)-timedelta(days=30)
+def keep_lead(x):
+    body=x.get("text","")
+    if NOISE.search(body) or NEGATIVE.search(body) or VACANCY.search(body): return False
+    if not KEYWORDS.search(body): return False
+    try:
+        posted=datetime.fromisoformat(x.get("date","").replace("Z","+00:00"))
+        if posted < cutoff: return False
+    except Exception:
+        return False
+    return True
+leads=sorted((x for x in old.values() if keep_lead(x)),key=lambda x:x.get("date",""),reverse=True)[:300]
 os.makedirs("data",exist_ok=True)
 with open(OUT,"w",encoding="utf-8") as f:
     json.dump({"updatedAt":datetime.now(timezone.utc).isoformat(),"count":len(leads),"channels":CHANNELS,"errors":errors,"leads":leads},f,ensure_ascii=False,indent=2)
