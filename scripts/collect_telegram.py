@@ -9,7 +9,7 @@ OUT = "data/leads.json"
 KEYWORDS = re.compile(r"\b(сайт|лендинг|верстк|разработ|фронтенд|frontend|html|css|javascript|\bjs\b|wordpress|бот|интернет-магазин|доработ|веб-прилож|web\s?site|landing|figma)\b", re.I)
 NEGATIVE = re.compile(r"(ищу работу|ищу заказ|предлагаю услуги|моё портфолио|мое портфолио|резюме|вакансия для разработчика)", re.I)
 NOISE = re.compile(r"(за последние сутки наш фриланс-бот|подборка лучших постов|лучшие статьи|больше проектов в нашем боте|узнать больше)", re.I)
-VACANCY = re.compile(r"(компания\\s*:|опыт работы\\s*:|зарплата\\s*:|требования\\s*:|полная занятость|график работы)", re.I)
+VACANCY = re.compile(r"(компания\s*:|опыт работы\s*:|зарплата\s*:|требования\s*:|полная занятость|график работы)", re.I)
 BUDGET = re.compile(r"(?:бюджет|оплата|стоимость|цена|до|от)?\s*([0-9][0-9\s.,]{2,})\s*(₽|руб(?:лей|ля)?|р\.?|usd|\$)", re.I)
 
 class MessageParser(HTMLParser):
@@ -59,7 +59,7 @@ def fetch(channel):
         for link in links:
             mt=re.search(r'https?://t\.me/([A-Za-z0-9_]{5,})(?:[/?#]|$)',link)
             if mt and mt.group(1).lower()!=channel.lower(): external.append("@"+mt.group(1))
-        blocked={"setjobs_bot", channel.lower(), "job_webdev", "web_fl", "webfrl", "job_developer"}
+        blocked={"setjobs_bot", channel.lstrip("@").lower(), "job_webdev", "web_fl", "webfrl", "job_developer"}
         contacts=list(dict.fromkeys([h for h in handles+external if h.lstrip("@").lower() not in blocked]))
         bm=BUDGET.search(body)
         budget=int(re.sub(r"[^0-9]","",bm.group(1))) if bm and not NOISE.search(body) else 0
