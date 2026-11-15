@@ -12,10 +12,10 @@ VACANCY = re.compile(r"(компания\s*:|опыт работы\s*:|зарп�
 BUDGET = re.compile(r"(?:бюджет|оплата|стоимость|цена|до|от)?\s*([0-9][0-9\s.,]{2,})\s*(₽|руб(?:лей|ля)?|р\.?|usd|\$)", re.I)
 BLOCKED_APPLY = ("kwork.ru", "weblancer.net", "fl.ru", "freelance.ru", "freelancehunt.com", "work-zilla.com", "youdo.com")
 BLOCKED_HANDLES = set(CHANNELS + ["setjobs_bot", "job_webdev", "web_fl", "webfrl", "job_developer", "digitaltender", "digitaltenderbot"])
-NON_WEB = re.compile(r"(графическ\\w* дизайнер|печатн\\w* продукц|фирменн\\w* стил|логотип|полиграф|баннер\\w*|smm[- ]?дизайн)", re.I)
-PROVIDER_TITLE = re.compile(r"^\\s*[👔💼]?\\s*(?:программист|графический дизайнер|веб[- ]?дизайнер|разработчик)\\s*$", re.I)
-CONTACT_CONTEXT = re.compile(r"(?:контакт(?:ы)?|писать|напишите|связаться|связь|telegram|телеграм|tg|заказчик|отклик)\\s*[:：\\-–—]?\\s*@([A-Za-z0-9_]{5,})", re.I)
-CONTACT_AFTER = re.compile(r"@([A-Za-z0-9_]{5,})\\s*[,—–\\-:]?\\s*(?:контакт|заказчик|телеграм|telegram)", re.I)
+NON_WEB = re.compile(r"(графическ\w* дизайнер|печатн\w* продукц|фирменн\w* стил|логотип|полиграф|баннер\w*|smm[- ]?дизайн)", re.I)
+PROVIDER_TITLE = re.compile(r"^\s*[👔💼]?\s*(?:программист|графический дизайнер|веб[- ]?дизайнер|разработчик)\s*$", re.I)
+CONTACT_CONTEXT = re.compile(r"(?:контакт(?:ы)?|писать|напишите|связаться|связь|telegram|телеграм|tg|заказчик|отклик)\s*[:：\-–—]?\s*@([A-Za-z0-9_]{5,})", re.I)
+CONTACT_AFTER = re.compile(r"@([A-Za-z0-9_]{5,})\s*[,—–\-:]?\s*(?:контакт|заказчик|телеграм|telegram)", re.I)
 CONTACT_LINK_LABEL = re.compile(r"(контакт|написать|связаться|заказчик|telegram|телеграм|отклик)", re.I)
 
 def clean(s):
@@ -57,7 +57,7 @@ def fetch(channel, suffix=""):
         external = []
         application_links = []
         for link in links:
-            mt = re.fullmatch(r'https?://t\\.me/([A-Za-z0-9_]{5,})/?(?:\\?[^#]*)?(?:#.*)?', link["url"])
+            mt = re.fullmatch(r'https?://t\.me/([A-Za-z0-9_]{5,})/?(?:\?[^#]*)?(?:#.*)?', link["url"])
             if mt and mt.group(1).lower() != channel.lower() and CONTACT_LINK_LABEL.search(link["text"]):
                 external.append(mt.group(1))
             elif link["url"].startswith(("https://","http://")) and "t.me/" not in link["url"]:
