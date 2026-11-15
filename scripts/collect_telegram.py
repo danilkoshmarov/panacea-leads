@@ -19,8 +19,8 @@ def clean(s):
     s = re.sub(r"<[^>]+>", " ", s)
     return re.sub(r"[ \t]+", " ", unescape(s)).strip()
 
-def fetch(channel):
-    url = f"https://t.me/s/{channel}"
+def fetch(channel, suffix=""):
+    url = f"https://t.me/s/{channel}" + suffix
     req = Request(url, headers={"User-Agent":"Mozilla/5.0 (compatible; PanaceaLeads/1.0)"})
     with urlopen(req, timeout=25) as r:
         html = r.read().decode("utf-8", "replace")
@@ -99,6 +99,8 @@ all_items, errors = [], []
 for channel in CHANNELS:
     try:
         all_items.extend(fetch(channel))
+        if channel == "web_fl":
+            all_items.extend(fetch(channel, "?after=604"))
     except Exception as e:
         errors.append({"channel":channel,"error":str(e)[:240]})
 
