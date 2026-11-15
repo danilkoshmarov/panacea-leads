@@ -71,7 +71,20 @@
   }
   $("feed-search")?.addEventListener("input",renderFeed);
   $("feed-channel")?.addEventListener("change",renderFeed);
-  $("feed-refresh")?.addEventListener("click",loadFeed);
+  $("feed-refresh")?.addEventListener("click",async()=>{
+    const btn=$("feed-refresh"), label=$("feed-updated");
+    if(btn.disabled)return;
+    btn.disabled=true; btn.textContent="↻ Проверяю…";
+    if(label) label.textContent="Проверяем последнюю опубликованную ленту…";
+    try{
+      await loadFeed();
+      if(label && feedLeads.length>=0) label.textContent=label.textContent+" · лента перечитана";
+    }catch(e){
+      if(label) label.textContent="Не удалось загрузить ленту. Проверь интернет или открой GitHub Actions.";
+    }finally{
+      btn.disabled=false; btn.textContent="↻ Проверить обновления";
+    }
+  });
 
   document.addEventListener("click",e=>{
     const feedAdd=e.target.closest("[data-feed-add]");
