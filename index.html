@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101511">
+  <title>Panacea Leads</title>
+  <link rel="stylesheet" href="src/styles/style.css">
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <a class="brand" href="#"><span class="brand-icon">P</span><span><b>PANACEA</b><small>LEADS ENGINE</small></span></a>
+    <div class="workspace"><small>WORKSPACE</small><b>Personal workspace</b></div>
+    <nav>
+      <button class="nav active" data-page="overview">◫　Обзор</button>
+      <button class="nav" data-page="orders">⌕　Все заказы <span id="nav-count">0</span></button>
+      <button class="nav" data-page="crm">▤　CRM</button>
+      <button class="nav" data-page="favorites">☆　Избранное</button>
+      <button class="nav" data-page="sources">◎　Источники</button>
+      <button class="nav" data-page="analytics">▥　Аналитика</button>
+      <button class="nav" data-page="settings">⚙　Настройки</button>
+    </nav>
+    <div class="sidebar-bottom"><span class="online-dot"></span> Локальная система <b>ONLINE</b><p>Panacea Leads · 0.2.1</p></div>
+  </aside>
+  <main class="main">
+    <header class="topbar"><div>Panacea <span>/</span> <b id="crumb">Обзор</b></div><button class="menu-btn" id="menu-btn">☰</button><div class="top-right">LOCAL WORKSPACE　·　DEVELOPMENT</div></header>
+    <section class="page active" id="page-overview">
+      <div class="heading"><div><small>PERSONAL LEAD MANAGEMENT</small><h1>Обзор</h1><p>Контролируй поиск заказов и движение потенциальных клиентов.</p></div><button class="primary" data-add>＋ Добавить заказ</button></div>
+      <div class="notice"><b>ⓘ</b><div><strong>Локальная версия 0.2.1</strong><p>Данные сохраняются в этом браузере. Реальные источники пока не подключены — не путай ручную базу с автоматическим сбором.</p></div></div>
+      <div class="stats">
+        <article><small>Всего заказов</small><strong id="s-total">0</strong><em>В локальной базе</em></article>
+        <article><small>Новые</small><strong id="s-new">0</strong><em>Ожидают контакта</em></article>
+        <article><small>В работе</small><strong id="s-work">0</strong><em>Контакт и переговоры</em></article>
+        <article><small>Потенциальный бюджет</small><strong id="s-budget">0 ₽</strong><em>По сохранённым заказам</em></article>
+      </div>
+      <div class="panel"><div class="panel-head"><div><h2>Последние заказы</h2><p>Недавно добавленные возможности</p></div><button class="link" data-go="orders">Все заказы →</button></div><div id="recent-list"></div></div>
+    </section>
+    <section class="page" id="page-orders">
+      <div class="heading"><div><small>LEAD DATABASE</small><h1>Все заказы</h1><p>Единая база проектов, заявок и потенциальных клиентов.</p></div><button class="primary" data-add>＋ Добавить заказ</button></div>
+      <div class="toolbar"><input id="search" placeholder="Поиск по названию, описанию, контакту…"><select id="filter-status"><option value="">Все статусы</option><option value="new">Новый</option><option value="contacted">Связались</option><option value="negotiation">Переговоры</option><option value="won">Выигран</option><option value="lost">Проигран</option></select><select id="sort"><option value="newest">Сначала новые</option><option value="oldest">Сначала старые</option><option value="budget">По бюджету ↓</option></select></div>
+      <div class="panel" id="orders-list"></div>
+    </section>
+    <section class="page" id="page-crm"><div class="heading"><div><small>CLIENT RELATIONSHIP</small><h1>CRM</h1><p>Следи за каждым контактом от первого касания до результата.</p></div><button class="primary" data-add>＋ Добавить заказ</button></div><div class="crm" id="crm-board"></div></section>
+    <section class="page" id="page-favorites"><div class="heading"><div><small>SAVED OPPORTUNITIES</small><h1>Избранное</h1><p>Самые интересные заказы, к которым нужно вернуться.</p></div></div><div class="panel" id="favorites-list"></div></section>
+    <section class="page" id="page-sources"><div class="heading"><div><small>DATA COLLECTION</small><h1>Источники</h1><p>Подключения будут добавляться только после проверки доступности и правил источника.</p></div></div><div class="notice"><b>!</b><div><strong>Автоматический сбор пока не реализован</strong><p>Сейчас приложение — локальная CRM. Следующий этап — тест реальных открытых источников, актуальности объявлений и способов связи.</p></div></div><div class="source-grid"><article class="panel"><b>Telegram</b><p>Публичные каналы и открытые публикации с заказами.</p><span class="tag">Не подключён</span></article><article class="panel"><b>RSS / Atom</b><p>Открытые ленты сайтов с проектами и вакансиями.</p><span class="tag">Не подключён</span></article><article class="panel"><b>Публичные сайты</b><p>Только доступные источники с соблюдением правил площадок.</p><span class="tag">Не подключён</span></article></div></section>
+    <section class="page" id="page-analytics"><div class="heading"><div><small>PERFORMANCE</small><h1>Аналитика</h1><p>Результаты по заказам, статусам и потенциальным бюджетам.</p></div></div><div class="stats"><article><small>Всего</small><strong id="a-total">0</strong></article><article><small>Средний бюджет</small><strong id="a-average">0 ₽</strong></article><article><small>Выиграно</small><strong id="a-won">0</strong></article><article><small>Конверсия</small><strong id="a-rate">0%</strong></article></div><div class="panel"><h2>Статусы заказов</h2><div id="bars"></div></div></section>
+    <section class="page" id="page-settings"><div class="heading"><div><small>PREFERENCES</small><h1>Настройки</h1><p>Резервное копирование и управление локальной базой.</p></div></div><div class="panel settings"><h2>Резервная копия</h2><p>Регулярно сохраняй JSON-файл. Данные хранятся только в этом браузере и не синхронизируются с GitHub.</p><button class="secondary" id="export">↓ Экспортировать JSON</button><label class="secondary file-label">↑ Импортировать JSON<input id="import" type="file" accept="application/json"></label><hr><h2>Опасная зона</h2><p>Удаление очистит локальную базу без возможности восстановления, если нет резервной копии.</p><button class="danger" id="clear">Удалить все заказы</button></div></section>
+  </main>
+</div>
+<dialog id="order-modal">
+  <form id="order-form">
+    <div class="modal-head"><div><small>LEAD DETAILS</small><h2 id="modal-title">Новый заказ</h2></div><button type="button" class="close" id="close-modal">✕</button></div>
+    <input type="hidden" id="edit-id">
+    <label>Название заказа *<input id="f-title" required maxlength="120" placeholder="Разработка сайта для кофейни"></label>
+    <div class="form-row"><label>Бюджет, ₽<input id="f-budget" type="number" min="0" step="1" placeholder="15000"></label><label>Источник<input id="f-source" maxlength="80" placeholder="Telegram, знакомые…"></label></div>
+    <label>Контакт или ссылка<input id="f-contact" maxlength="250" placeholder="@username или URL объявления"></label>
+    <label>Описание<textarea id="f-description" rows="4" maxlength="2000" placeholder="Требования, сроки, детали…"></textarea></label>
+    <div class="form-row"><label>Статус<select id="f-status"><option value="new">Новый</option><option value="contacted">Связались</option><option value="negotiation">Переговоры</option><option value="won">Выигран</option><option value="lost">Проигран</option></select></label><label>Дата публикации<input id="f-date" type="date"></label></div>
+    <div class="modal-actions"><button type="button" class="secondary" id="cancel-modal">Отмена</button><button class="primary" type="submit">Сохранить заказ</button></div>
+  </form>
+</dialog>
+<div class="toast" id="toast"></div>
+<script src="src/js/app.js"></script>
+</body>
+</html>
