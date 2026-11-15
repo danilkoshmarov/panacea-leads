@@ -51,7 +51,7 @@ def fetch(channel, suffix=""):
         external = []
         application_links = []
         for link in links:
-            mt = re.search(r'https?://t\.me/([A-Za-z0-9_]{5,})(?:[/?#]|$)', link["url"])
+            mt = re.fullmatch(r'https?://t\.me/([A-Za-z0-9_]{5,})/?(?:\?[^#]*)?(?:#.*)?', link["url"])
             if mt and mt.group(1).lower() != channel.lower():
                 external.append(mt.group(1))
             elif link["url"].startswith(("https://","http://")) and "t.me/" not in link["url"]:
