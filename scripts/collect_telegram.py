@@ -24,9 +24,12 @@ def fetch(channel):
     req = Request(url, headers={"User-Agent":"Mozilla/5.0 (compatible; PanaceaLeads/1.0)"})
     with urlopen(req, timeout=25) as r:
         html = r.read().decode("utf-8", "replace")
-    blocks = re.findall(r'<div class="tgme_widget_message_wrap[^"]*"[^>]*data-post="([^"]+)"[^>]*>(.*?)(?=<div class="tgme_widget_message_wrap|<div class="tgme_channel_bottom|$)', html, re.S)
-    if not blocks:
-        return []
+    raw_blocks = re.findall(r'<div class="tgme_widget_message_wrap[^>]*>(.*?)(?=<div class="tgme_widget_message_wrap|<div class="tgme_channel_bottom|$)', html, re.S)
+    blocks = []
+    for block in raw_blocks:
+        post_match = re.search(r'data-post="([^"]+)"', block)
+        if post_match:
+            blocks.append((post_match.group(1), block))
     items = []
     for post, block in blocks:
         m = re.search(r'<div class="tgme_widget_message_text[^"]*"[^>]*>(.*?)</div>', block, re.S)
