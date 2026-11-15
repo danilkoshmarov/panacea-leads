@@ -43,8 +43,8 @@
       <div class="panel" id="orders-list"></div>
     </section>
     <section class="page" id="page-feed">
-      <div class="heading"><div><small>LIVE LEAD COLLECTION</small><h1>Найденные заказы</h1><p>Новые публичные объявления из Telegram. Проверяй детали перед откликом.</p></div><button class="secondary" id="feed-refresh">↻ Обновить</button></div>
-      <div class="notice"><b>⚡</b><div><strong id="feed-updated">Автоматический сбор</strong><p>Пять публичных Telegram-источников проверяются каждые 15 минут. Лучший подходящий заказ поднимается наверх; прямой контакт показывается отдельной ссылкой.</p></div></div>
+      <div class="heading"><div><small>LIVE LEAD COLLECTION</small><h1>Найденные заказы</h1><p>Новые публичные объявления из Telegram. Проверяй детали перед откликом.</p></div><div class="feed-controls"><button class="secondary" id="feed-refresh" type="button">↻ Проверить обновления</button><a class="secondary" id="feed-run" href="https://github.com/danilkoshmarov/panacea-leads/actions/workflows/collect-telegram.yml" target="_blank" rel="noopener">Запустить новый сбор ↗</a></div></div>
+      <div class="notice"><b>⚡</b><div><strong id="feed-updated">Автоматический сбор</strong><p>Сборщик автоматически ищет новые публикации каждые 15 минут. «Проверить обновления» перечитывает последнюю собранную ленту; «Запустить новый сбор» открывает GitHub Actions, где можно вручную запустить поиск.</p></div></div>
       <div class="toolbar"><input id="feed-search" placeholder="Поиск по заказам, технологиям и тексту…"><select id="feed-channel"><option value="">Все каналы</option><option>@web_fl</option><option>@job_webdev</option><option>@webfrl</option><option>@job_developer</option><option>@digitaltender</option></select></div>
       <div class="notice" id="best-status" aria-live="polite"><b>★</b><div><strong>Выбор лучшего заказа</strong><p>Проверяем свежесть, соответствие навыкам и наличие прямого контакта.</p></div></div><div id="feed-list"></div>
     </section>
