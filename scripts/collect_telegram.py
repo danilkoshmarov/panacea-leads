@@ -6,9 +6,9 @@ from html.parser import HTMLParser
 
 CHANNELS = ["web_fl", "job_webdev", "webfrl", "job_developer"]
 OUT = "data/leads.json"
-KEYWORDS = re.compile(r"\\b(сайт|лендинг|верстк|разработ|фронтенд|frontend|html|css|javascript|\\bjs\\b|wordpress|бот|интернет-магазин|доработ|веб-прилож|web\\s?site|landing|figma)\\b", re.I)
+KEYWORDS = re.compile(r"\b(сайт|лендинг|верстк|разработ|фронтенд|frontend|html|css|javascript|\bjs\b|wordpress|бот|интернет-магазин|доработ|веб-прилож|web\s?site|landing|figma)\b", re.I)
 NEGATIVE = re.compile(r"(ищу работу|ищу заказ|предлагаю услуги|моё портфолио|мое портфолио|резюме|вакансия для разработчика)", re.I)
-BUDGET = re.compile(r"(?:бюджет|оплата|стоимость|цена|до|от)?\\s*([0-9][0-9\\s.,]{2,})\\s*(₽|руб(?:лей|ля)?|р\\.?|usd|\\$)", re.I)
+BUDGET = re.compile(r"(?:бюджет|оплата|стоимость|цена|до|от)?\s*([0-9][0-9\s.,]{2,})\s*(₽|руб(?:лей|ля)?|р\.?|usd|\$)", re.I)
 
 class MessageParser(HTMLParser):
     def __init__(self):
@@ -30,10 +30,10 @@ class MessageParser(HTMLParser):
         # Message boundaries are parsed by a second, robust block parser below.
 
 def strip_tags(s):
-    s=re.sub(r"<br\\s*/?>","\\n",s,flags=re.I)
-    s=re.sub(r"</div>|</p>","\\n",s,flags=re.I)
+    s=re.sub(r"<br\s*/?>","\n",s,flags=re.I)
+    s=re.sub(r"</div>|</p>","\n",s,flags=re.I)
     s=re.sub(r"<[^>]+>"," ",s)
-    return re.sub(r"[ \\t]+"," ",unescape(s)).strip()
+    return re.sub(r"[ \t]+"," ",unescape(s)).strip()
 
 def fetch(channel):
     url=f"https://t.me/s/{channel}"
@@ -52,10 +52,10 @@ def fetch(channel):
         date_m=re.search(r'<time[^>]*datetime="([^"]+)"',block)
         date=date_m.group(1) if date_m else ""
         links=re.findall(r'<a[^>]+href="([^"]+)"',block)
-        handles=list(dict.fromkeys(re.findall(r'(?<![\\w])@[A-Za-z0-9_]{5,}',body)))
+        handles=list(dict.fromkeys(re.findall(r'(?<![\w])@[A-Za-z0-9_]{5,}',body)))
         external=[]
         for link in links:
-            mt=re.search(r'https?://t\\.me/([A-Za-z0-9_]{5,})(?:[/?#]|$)',link)
+            mt=re.search(r'https?://t\.me/([A-Za-z0-9_]{5,})(?:[/?#]|$)',link)
             if mt and mt.group(1).lower()!=channel.lower(): external.append("@"+mt.group(1))
         contacts=list(dict.fromkeys(handles+external))
         bm=BUDGET.search(body)
