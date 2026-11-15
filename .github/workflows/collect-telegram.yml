@@ -20,6 +20,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Validate frontend JavaScript
+        run: node --check src/js/app.js
+      - name: Validate collector syntax
+        run: python -m py_compile scripts/collect_telegram.py
       - name: Collect public channel posts
         run: python scripts/collect_telegram.py
       - name: Commit updated lead feed
